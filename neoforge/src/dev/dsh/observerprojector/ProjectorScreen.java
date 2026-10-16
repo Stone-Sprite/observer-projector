@@ -170,7 +170,6 @@ final class ProjectorScreen extends Screen {
         int third = Math.max(1, (rightW - GAP * 2) / 3);
         addRenderableWidget(Button.builder(Component.literal("▶ 播放"), b -> {
             if (rowCount() == 0) {
-                ObserverProjector.chat(minecraft, "§e列表是空的");
                 return;
             }
             playSelected();
@@ -293,15 +292,7 @@ final class ProjectorScreen extends Screen {
         addRenderableWidget(toggle(ProjectorConfig.emissive ? "自发光：开" : "自发光：关",
                 () -> ProjectorConfig.emissive = !ProjectorConfig.emissive, lx, rowTop, half));
         addRenderableWidget(toggle(ProjectorConfig.occlusion ? "遮挡β：开" : "遮挡β：关",
-                () -> {
-                    ProjectorConfig.occlusion = !ProjectorConfig.occlusion;
-                    if (ProjectorConfig.occlusion) {
-                        ObserverProjector.chat(minecraft,
-                                "§e遮挡(beta) 已开：画面逐格按视线判断，被方块或生物挡住的格子不画。");
-                        ObserverProjector.chat(minecraft,
-                                "§e这是 beta —— 格子边缘可能有缝，投影仪离墙太近或角度太斜时更明显，也可能掉帧。");
-                    }
-                }, rx, rowTop, rw));
+                () -> ProjectorConfig.occlusion = !ProjectorConfig.occlusion, rx, rowTop, rw));
         rowTop += BTN_H + GAP;
 
         addRenderableWidget(toggle(ProjectorConfig.flipH ? "水平翻转：开" : "水平翻转：关",
@@ -403,7 +394,6 @@ final class ProjectorScreen extends Screen {
     /** 选中一条搜索结果 → 解析真实流地址 → 带 Referer 播。 */
     private void playSelectedResult() {
         if (selected < 0 || selected >= results.size()) {
-            ObserverProjector.chat(minecraft, "§e先选一条搜索结果");
             return;
         }
         ProviderSearch.Result r = results.get(selected);
@@ -412,7 +402,6 @@ final class ProjectorScreen extends Screen {
                 long cid = ProviderSearch.cidOf(r.bvid);
                 String url = ProviderSearch.videoUrl(r.bvid, cid);
                 if (url == null) {
-                    ObserverProjector.chat(minecraft, "§c这条拿不到播放地址（可能是会员专享）");
                     return;
                 }
                 ObserverProjector.LOG.info("[OP] 解析到流: {}", url);
@@ -420,7 +409,6 @@ final class ProjectorScreen extends Screen {
                 minecraft.execute(() -> VideoPlayer.playUrl(url, ProviderSearch.REFERER));
             } catch (Exception e) {
                 ObserverProjector.LOG.warn("[OP] 取流失败: {}", e.toString());
-                ObserverProjector.chat(minecraft, "§c取流失败: " + e.getMessage());
             }
         }, "op-resolve").start();
     }
@@ -434,7 +422,6 @@ final class ProjectorScreen extends Screen {
             }
             String url = CCTV_CHANNELS[selected][1];
             if (url == null || url.isEmpty()) {
-                ObserverProjector.chat(minecraft, "§e这个频道还没配地址（CCTV_CHANNELS 里填 m3u8）");
                 return;
             }
             VideoPlayer.playUrl(url, null);
@@ -448,7 +435,6 @@ final class ProjectorScreen extends Screen {
             }
             VideoPlayer.play(files.get(selected));
         } else {
-            ObserverProjector.chat(minecraft, "§e列表是空的");
         }
     }
 
