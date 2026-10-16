@@ -1,0 +1,12 @@
+# 构建产物
+build/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 系统
+Thumbs.db
+.DS_Store

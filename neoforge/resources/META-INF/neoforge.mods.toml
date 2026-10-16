@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+
+license = "MIT"
+[[mods]]
+modId = "observerprojector"
+version = "0.1.0"
+displayName = "Observer Projector"
+authors = "DSH"
+description = ''
+Turns the observer block into a projector. Place one on a fence, put a button on
+its back, then right-click it to open the player UI. The picture comes out of the
+observer's face and lands on whatever wall is 5-15 blocks away.
+
+Plays local video files, Bilibili search results, CCTV live channels, or any
+m3u8/mp4 URL, decoded through ffmpeg. Audio is spatialised from the projector -
+or from a note block nearby, which turns it into an external speaker.
+
+Client-side only. Requires ffmpeg on the machine.
+''
+logoFile = "logo.png"
+[[dependencies.observerprojector]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.11.42,)"
+ordering = "NONE"
+side = "BOTH"
+[[dependencies.observerprojector]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.11,1.22)"
+ordering = "NONE"
+side = "BOTH"
