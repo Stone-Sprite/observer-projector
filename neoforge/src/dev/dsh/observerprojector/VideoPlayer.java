@@ -291,6 +291,10 @@ final class VideoPlayer {
         acmd.add(ffmpeg());
         acmd.add("-loglevel"); acmd.add("error");
         acmd.add("-re");
+        acmd.add("-reconnect"); acmd.add("1");
+        acmd.add("-reconnect_streamed"); acmd.add("1");
+        acmd.add("-reconnect_delay_max"); acmd.add("5");
+        acmd.add("-reconnect_at_eof"); acmd.add("1");
         if (streamReferer != null) {
             // 音频进程同样要 Referer —— 少了它 B站 CDN 直接 403，表现是"有画面没声音"。
             acmd.add("-headers");
