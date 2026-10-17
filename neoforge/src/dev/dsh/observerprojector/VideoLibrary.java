@@ -192,7 +192,18 @@ final class VideoLibrary {
             File[] roots = File.listRoots();
             if (roots != null) {
                 long totalDeadline = started + BUDGET_TOTAL_MS;
-                for (File root : roots) {
+                // D 盘优先。总时间预算只有 12 秒，扫到后面用完了就收工，
+                // 而 D 盘最可能是放视频的地方 —— 把它排到第一个，预算优先给它。
+                java.util.List<File> ordered = new java.util.ArrayList<>(java.util.Arrays.asList(roots));
+                ordered.sort((a, b) -> {
+                    boolean da = a.getPath().toUpperCase(Locale.ROOT).startsWith("D");
+                    boolean db = b.getPath().toUpperCase(Locale.ROOT).startsWith("D");
+                    if (da == db) {
+                        return a.getPath().compareToIgnoreCase(b.getPath());
+                    }
+                    return da ? -1 : 1;
+                });
+                for (File root : ordered) {
                     if (root == null || !root.isDirectory()) {
                         continue;
                     }
