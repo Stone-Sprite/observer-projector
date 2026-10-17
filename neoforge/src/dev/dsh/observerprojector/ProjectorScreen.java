@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -585,26 +586,30 @@ final class ProjectorScreen extends Screen {
             ShareChannel.setCommand(cmdBox.getValue());
         }).bounds(ctrlX() + ctrlW() - 76, rowTop, 76, BTN_H).build());
         rowTop += BTN_H + GAP;
-
-        // 共享目标：一个名字一个，点一下删掉
-        addRenderableWidget(targetBox = new EditBox(font, ctrlX(), rowTop, ctrlW() - 80, BTN_H, Component.literal("玩家名")));
-        targetBox.setMaxLength(32);
-        addRenderableWidget(targetBox);
-        addRenderableWidget(Button.builder(Component.literal("添加"), b -> {
-            ShareChannel.addTarget(targetBox.getValue());
-            rebuildWidgets();
-        }).bounds(ctrlX() + ctrlW() - 76, rowTop, 76, BTN_H).build());
+        // 快捷指令：各服常见的那几个一键切换，省得手打
+        int qw = Math.max(24, (ctrlW() - GAP * 2) / 3);
+        int qx = ctrlX();
+        int shown = 0;
+        for (String cmd : ShareChannel.COMMON_COMMANDS) {
+            if (shown >= 3) {
+                break;
+            }
+            final String c = cmd;
+            addRenderableWidget(Button.builder(Component.literal(cmd), b -> {
+                ShareChannel.setCommand(c);
+                rebuildWidgets();
+            }).bounds(qx, rowTop, qw, BTN_H).build());
+            qx += qw + GAP;
+            shown++;
+        }
         rowTop += BTN_H + GAP;
 
-        shareTargetStart = rowTop;
-        for (String who : ShareChannel.targets()) {
-            final String n = who;
-            addRenderableWidget(Button.builder(Component.literal("✕ " + who), b -> {
-                ShareChannel.removeTarget(n);
-                rebuildWidgets();
-            }).bounds(ctrlX(), rowTop, ctrlW(), BTN_H).build());
-            rowTop += BTN_H + 2;
-        }
+        // 共享目标：和 dshmusic 一样，用一个独立的选人界面
+        addRenderableWidget(Button.builder(
+                Component.literal("选择共享的玩家 (" + ShareChannel.targets().size() + ")"),
+                b -> minecraft.setScreen(new PlayerPickerScreen(this)))
+                .bounds(ctrlX(), rowTop, ctrlW(), BTN_H).build());
+        rowTop += BTN_H + GAP;
     }
 
     /** 共享页标注。 */
@@ -807,4 +812,107 @@ final class ProjectorScreen extends Screen {
             return false;
         }
     }
+
+    /**
+     * 选共享目标。和 dshmusic 的 PlayerPickerScreen 同一套逻辑：
+     * 列出服务器上在线的人，点一下切换，配合全选/清空。
+     */
+    static final class PlayerPickerScreen extends Screen {
+
+        private static final int W = 300;
+        private static final int H = 220;
+
+        private final Screen parent;
+        private int px, py;
+
+        PlayerPickerScreen(Screen parent) {
+            super(Component.literal("选择共享的玩家"));
+            this.parent = parent;
+        }
+
+        private static java.util.List<String> online() {
+            java.util.List<String> out = new java.util.ArrayList<>();
+            var conn = Minecraft.getInstance().getConnection();
+            if (conn == null) {
+                return out;
+            }
+            try {
+                for (var pi : conn.getOnlinePlayers()) {
+                    String n = pi.getProfile().getName();
+                    if (n != null && !n.isEmpty()) {
+                        out.add(n);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            out.sort(String::compareToIgnoreCase);
+            return out;
+        }
+
+        @Override
+        protected void init() {
+            px = (width - W) / 2;
+            py = (height - H) / 2;
+            java.util.List<String> players = online();
+
+            int columns = 2;
+            int cw = (W - PAD * 2 - GAP) / columns;
+            int row = 0;
+            for (String n : players) {
+                if (py + 30 + (row / columns) * (BTN_H + 3) > py + H - 50) {
+                    break;
+                }
+                boolean on = ShareChannel.targets().contains(n);
+                int cx = px + PAD + (row % columns) * (cw + GAP);
+                int cy = py + 30 + (row / columns) * (BTN_H + 3);
+                addRenderableWidget(Button.builder(
+                        Component.literal((on ? "§a✓ " : "§7○ ") + n), b -> {
+                            if (ShareChannel.targets().contains(n)) {
+                                ShareChannel.removeTarget(n);
+                            } else {
+                                ShareChannel.addTarget(n);
+                            }
+                            rebuildWidgets();
+                        }).bounds(cx, cy, cw, BTN_H).build());
+                row++;
+            }
+
+            int bw = (W - PAD * 2 - GAP * 2) / 3;
+            int by = py + H - 42;
+            addRenderableWidget(Button.builder(Component.literal("全选"), b -> {
+                for (String n : online()) {
+                    ShareChannel.addTarget(n);
+                }
+                rebuildWidgets();
+            }).bounds(px + PAD, by, bw, BTN_H).build());
+            addRenderableWidget(Button.builder(Component.literal("清空"), b -> {
+                for (String n : ShareChannel.targets()) {
+                    ShareChannel.removeTarget(n);
+                }
+                rebuildWidgets();
+            }).bounds(px + PAD + bw + GAP, by, bw, BTN_H).build());
+            addRenderableWidget(Button.builder(Component.literal("返回"), b -> minecraft.setScreen(parent))
+                    .bounds(px + PAD + (bw + GAP) * 2, by, bw, BTN_H).build());
+        }
+
+        @Override
+        public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
+            g.fill(px, py, px + W, py + H, 0xF0100010);
+            g.fill(px, py, px + W, py + 1, 0xDD8AB6D6);
+            g.fill(px, py + H - 1, px + W, py + H, 0xDD8AB6D6);
+            g.drawString(font, "选择共享的玩家", px + PAD, py + 8, text(TITLE), false);
+            String sub = "已选 " + ShareChannel.targets().size() + " 人 · 指令 " + ShareChannel.command();
+            g.drawString(font, sub, px + PAD, py + 20, text(DIM), false);
+            if (online().isEmpty()) {
+                g.drawString(font, "当前没有其他在线玩家", px + PAD, py + 40, text(DIM), false);
+            }
+            super.render(g, mouseX, mouseY, partial);
+        }
+
+        @Override
+        public boolean isPauseScreen() {
+            return false;
+        }
+    }
+
 }

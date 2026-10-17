@@ -1,4 +1,4 @@
-# Observer Projector 观察者投影机 0.2.0
+# Observer Projector 观察者投影机 0.3.1
 
 Minecraft 1.21.11。两个 loader 各一份，装到对应实例的 mods 目录即可。
 
@@ -6,8 +6,8 @@ Minecraft 1.21.11。两个 loader 各一份，装到对应实例的 mods 目录�
 
 | 文件 | 放哪儿 |
 |---|---|
-| observerprojector-0.2.0-neoforge.jar | NeoForge 21.11.42 实例的 mods/ |
-| observerprojector-0.2.0-fabric.jar   | Fabric Loader 0.19+ 实例的 mods/ |
+| observerprojector-0.3.1-neoforge.jar | NeoForge 21.11.42 实例的 mods/ |
+| observerprojector-0.3.1-fabric.jar   | Fabric Loader 0.19+ 实例的 mods/ |
 
 ## 用之前必须先有 ffmpeg
 
@@ -51,8 +51,8 @@ Minecraft 1.21.11。两个 loader 各一份，装到对应实例的 mods 目录�
 
 格式 0.<大版本>.<小版本>：
 
-- 大改动 +0.2.0（0.2.0 到 0.2.0）
-- 小改动 +0.0.1（0.2.0 到 0.2.0）
+- 大改动 +0.3.1（0.3.1 到 0.3.1）
+- 小改动 +0.0.1（0.3.1 到 0.3.1）
 
 ## 授权
 
