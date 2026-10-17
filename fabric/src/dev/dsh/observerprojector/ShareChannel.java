@@ -40,7 +40,14 @@ final class ShareChannel {
      * {@code SocketException: Connection ...}，玩家莫名其妙掉线。
      * 加密之后不能安全截断（会破坏认证标签），所以只能整条放弃。
      */
-    private static final int MAX_TOKEN = 180;
+    private static final int MAX_TOKEN = 220;
+
+    /** 上次共享失败的原因，给界面显示用。成功时清空。 */
+    private static String lastError = "";
+
+    static String lastError() {
+        return lastError;
+    }
 
     private static final Set<String> TARGETS = new LinkedHashSet<>();
 
@@ -122,6 +129,7 @@ final class ShareChannel {
         if (token.length() > MAX_TOKEN) {
             ObserverProjector.LOG.warn("[OP] 共享载荷过长（{} 字符，上限 {}），放弃发送：{}",
                     token.length(), MAX_TOKEN, id);
+            lastError = "共享内容压缩后仍有 " + token.length() + " 字符，超过 " + MAX_TOKEN + " 的上限";
             return false;
         }
         // sendCommand 会自己补上开头的斜杠，所以传 "/w" 会变成 "//w" 被服务器拒掉
@@ -130,6 +138,7 @@ final class ShareChannel {
             mc.getConnection().sendCommand(bare + " " + who + " " + token);
         }
         lastSent = id;
+        lastError = "";
         ObserverProjector.LOG.info("[OP] 共享给 {}: {}", TARGETS, id);
         return true;
     }

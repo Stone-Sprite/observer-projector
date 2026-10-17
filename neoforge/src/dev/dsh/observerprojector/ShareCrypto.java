@@ -51,7 +51,12 @@ final class ShareCrypto {
             RANDOM.nextBytes(nonce);
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
             c.init(Cipher.ENCRYPT_MODE, KEY, new GCMParameterSpec(TAG_BITS, nonce));
-            byte[] ct = c.doFinal(plain.getBytes(StandardCharsets.UTF_8));
+            // 先压缩再加密。分享的内容常常是一串 URL，里面全是重复的样板
+            // （https://、upgcxcode、&platform=、&trid= ...），Deflate 能吃掉一大半。
+            // 不压的话 B站那种签名地址加密后 700+ 字符，一条聊天行根本装不下。
+            byte[] raw = plain.getBytes(StandardCharsets.UTF_8);
+            byte[] packed = deflate(raw);
+            byte[] ct = c.doFinal(packed);
             byte[] out = new byte[nonce.length + ct.length];
             System.arraycopy(nonce, 0, out, 0, nonce.length);
             System.arraycopy(ct, 0, out, nonce.length, ct.length);
@@ -98,9 +103,66 @@ final class ShareCrypto {
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
             c.init(Cipher.DECRYPT_MODE, KEY, new GCMParameterSpec(TAG_BITS, nonce));
             byte[] pt = c.doFinal(all, NONCE_LEN, all.length - NONCE_LEN);
-            return new String(pt, StandardCharsets.UTF_8);
+            // 和 seal 那边对称：先解压再转字符串
+            return new String(inflate(pt), StandardCharsets.UTF_8);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Deflate 压缩。压缩不动的时候原样返回，靠首字节标记区分。 */
+    private static byte[] deflate(byte[] in) {
+        try {
+            java.util.zip.Deflater d = new java.util.zip.Deflater(java.util.zip.Deflater.BEST_COMPRESSION);
+            d.setInput(in);
+            d.finish();
+            byte[] buf = new byte[in.length + 64];
+            int n = d.deflate(buf);
+            d.end();
+            if (n <= 0 || n >= in.length) {
+                return flag(in, (byte) 0);
+            }
+            byte[] out = new byte[n + 1];
+            out[0] = 1;
+            System.arraycopy(buf, 0, out, 1, n);
+            return out;
+        } catch (Exception e) {
+            return flag(in, (byte) 0);
+        }
+    }
+
+    private static byte[] inflate(byte[] in) {
+        if (in.length < 1) {
+            return in;
+        }
+        if (in[0] == 0) {
+            byte[] out = new byte[in.length - 1];
+            System.arraycopy(in, 1, out, 0, out.length);
+            return out;
+        }
+        try {
+            java.util.zip.Inflater f = new java.util.zip.Inflater();
+            f.setInput(in, 1, in.length - 1);
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(in.length * 4);
+            byte[] buf = new byte[1024];
+            while (!f.finished()) {
+                int n = f.inflate(buf);
+                if (n == 0) {
+                    break;
+                }
+                bos.write(buf, 0, n);
+            }
+            f.end();
+            return bos.toByteArray();
+        } catch (Exception e) {
+            return new byte[0];
+        }
+    }
+
+    private static byte[] flag(byte[] in, byte mark) {
+        byte[] out = new byte[in.length + 1];
+        out[0] = mark;
+        System.arraycopy(in, 0, out, 1, in.length);
+        return out;
     }
 }

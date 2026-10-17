@@ -579,6 +579,15 @@ final class ProjectorScreen extends Screen {
                 if (minecraft.player != null) {
                     minecraft.player.displayClientMessage(Component.literal("§e还没加共享目标"), false);
                 }
+            } else if (!ShareChannel.lastError().isEmpty()) {
+                // 拒绝发送也要说清楚，不然按钮点下去像坏了
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§c" + ShareChannel.lastError()), false);
+                }
+            } else {
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§7当前内容没变化，不需要重复共享"), false);
+                }
             }
         }).bounds(listX + rightW / 2, rowTop, rightW / 2, BTN_H).build());
         rowTop += BTN_H + GAP + 4;
