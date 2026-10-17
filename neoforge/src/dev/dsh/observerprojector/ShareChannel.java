@@ -33,6 +33,15 @@ final class ShareChannel {
 
     static final String DEFAULT_COMMAND = "/w";
 
+    /**
+     * 一条私聊命令的载荷上限。
+     *
+     * <p>超了服务器会把这条当非法包处理，直接踢人 —— 客户端看到的是
+     * {@code SocketException: Connection ...}，玩家莫名其妙掉线。
+     * 加密之后不能安全截断（会破坏认证标签），所以只能整条放弃。
+     */
+    private static final int MAX_TOKEN = 180;
+
     private static final Set<String> TARGETS = new LinkedHashSet<>();
 
     private static volatile boolean enabled;
@@ -104,6 +113,15 @@ final class ShareChannel {
                 + (System.currentTimeMillis() / 1000L) + "}";
         String token = ShareCrypto.seal(json);
         if (token == null) {
+            return false;
+        }
+        // 长度红线。私聊命令是一条聊天行，服务器对它的长度有限制；超过的被当
+        // 非法包处理，直接踢人（客户端看到的是 SocketException: Connection ...）。
+        // 加密之后不能安全截断（会破坏认证标签），所以只能整条放弃 ——
+        // 宁可不共享，也不能把玩家踢下线。
+        if (token.length() > MAX_TOKEN) {
+            ObserverProjector.LOG.warn("[OP] 共享载荷过长（{} 字符，上限 {}），放弃发送：{}",
+                    token.length(), MAX_TOKEN, id);
             return false;
         }
         // sendCommand 会自己补上开头的斜杠，所以传 "/w" 会变成 "//w" 被服务器拒掉
