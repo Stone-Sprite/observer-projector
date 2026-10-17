@@ -20,7 +20,10 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
@@ -70,7 +73,9 @@ public final class ObserverProjector {
 
     public ObserverProjector(IEventBus modBus) {
         modBus.addListener(ObserverProjector::onRegisterKeys);
+        modBus.addListener(ObserverProjector::onRegisterLayers);
         NeoForge.EVENT_BUS.register(ObserverProjector.class);
+        initVideoLibrary();
     }
 
     private static void onRegisterKeys(RegisterKeyMappingsEvent event) {
@@ -176,5 +181,27 @@ public final class ObserverProjector {
                 mc.player.displayClientMessage(Component.literal(note), false);
             }
         }
+    }
+
+    /**
+     * 注册 HUD。位置和外观照搬 dshmusic 的 MusicHud —— 两个 mod 的读数在同一处，
+     * 同时用的时候不会打架。
+     */
+    private static void onRegisterLayers(RegisterGuiLayersEvent event) {
+        event.registerAbove(VanillaGuiLayers.EXPERIENCE_LEVEL,
+                Identifier.fromNamespaceAndPath(MODID, "projector_hud"),
+                new ProjectorHudLayer());
+    }
+
+    /** 启动时读视频库缓存，然后后台重建一次索引。 */
+    private static void initVideoLibrary() {
+        VideoLibrary.loadCache();
+        new Thread(() -> {
+            try {
+                VideoLibrary.rescan();
+            } catch (Exception e) {
+                LOG.warn("[OP] 视频库重建失败: {}", e.toString());
+            }
+        }, "op-library").start();
     }
 }
