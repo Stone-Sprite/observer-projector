@@ -334,7 +334,15 @@ final class ProjectorRenderer {
         }
 
         // ---- 待机文字 ----
-        drawNoSignal(mc, pose, buffers, lens, wallCenter, h, cols, rows);
+        // 只在没有画面的时候画。之前是无条件调用，播放时这段字也叠在视频上 ——
+        // 配上撞角动画，看着就是"有画面也乱窜"。
+        if (!VideoPlayer.playing()) {
+            // 只在没有画面时画。之前无条件调用，播放时这段字叠在视频上，
+        // 加上撞角动画就成了"有画面也乱窜"。
+        if (!VideoPlayer.playing()) {
+            drawNoSignal(mc, pose, buffers, lens, wallCenter, h, cols, rows);
+        }
+        }
 
         pose.popPose();
 
@@ -546,13 +554,8 @@ final class ProjectorRenderer {
         Component text = Component.literal("DVD \u7121\u8A0A\u865F");
 
         // 撞角动画：归一化坐标 -1..1，每帧按速度挪，碰边就反向
-        // 按真实时间推，不是按帧。之前每帧加固定量，帧率一变速度就跟着变
-        // —— 高帧率下这块标志会到处乱窜。
-        long nowMs = System.currentTimeMillis();
-        float dt = dvdLast == 0L ? 0f : Math.min(0.1f, (nowMs - dvdLast) / 1000f);
-        dvdLast = nowMs;
-        dvdX += dvdVx * dt;
-        dvdY += dvdVy * dt;
+        // 位置固定居中。之前做过 DVD 撞角动画，但它会干扰画面 —— 而且播放时也在画，
+        // 看着像有东西在画面里乱窜。无信号标志就该老老实实待在中间。
         if (dvdX > 0.72f) {
             dvdX = 0.72f;
             dvdVx = -dvdVx;
@@ -584,7 +587,7 @@ final class ProjectorRenderer {
         float s = (float) (h / 5.0 / 9.0);
         pose.scale(-s, -s, s);
         // 在文字的像素空间里偏移：屏幕半宽/半高 × 归一化位置
-        pose.translate(dvdX * TEX_W / 2f, dvdY * TEX_H / 2f, 0f);
+        // 位置固定：不再按帧或按时间偏移
         Matrix4f m = pose.last().pose();
         font.drawInBatch(text, -font.width(text) / 2f, -4f, 0xFFFFFFFF, false, m,
                 buffers, Font.DisplayMode.NORMAL, 0, 0xF000F0);
