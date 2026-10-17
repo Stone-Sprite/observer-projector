@@ -198,6 +198,15 @@ final class ProjectorRenderer {
         }
         ensureTexture(mc);
 
+        // 从播到停的那一瞬间，把待机画面重新画一遍 —— 否则贴图会停在最后一帧。
+        // ensureTexture 只在尺寸/通道变化时重建，播放结束它不会自己重画。
+        boolean nowPlaying = VideoPlayer.playing();
+        if (wasPlaying && !nowPlaying && screen != null && !ProjectorConfig.occlusion) {
+            drawIdleScreen();
+            screen.upload();
+        }
+        wasPlaying = nowPlaying;
+
         BlockPos origin = ObserverProjector.active;
         Direction lens = ObserverProjector.lens;
 
@@ -519,7 +528,15 @@ final class ProjectorRenderer {
         return sy * TEX_W + sx;
     }
 
-    /** 待机文字：经典 DVD 播放机的「无信号」。 */
+    /**
+     * 待机文字：经典 DVD 播放机的「无信号」。
+     *
+     * <p>会像真的 DVD 屏保那样对角漂移、碰到边缘反弹 —— 位置每帧挪一点，用的是一小块
+     * 贴图之外的几何，代价可以忽略（不像逐像素重画整张图）。
+     *
+     * <p>朝向：这台文字是贴在墙**朝镜头**那一面的。之前那组 switch 的角度整体偏了 180°，
+     * 结果是贴在墙背面、要绕到后面才看得清 —— 所以在 switch 前先补一个 Y 轴 180°。
+     */
     private static void drawNoSignal(Minecraft mc, PoseStack pose, MultiBufferSource buffers,
                                      Direction lens, Vec3 center, double h, int cols, int rows) {
         if (!ProjectorConfig.textOn || cols < 3 || rows < 2) {
@@ -528,10 +545,29 @@ final class ProjectorRenderer {
         Font font = mc.font;
         Component text = Component.literal("DVD \u7121\u8A0A\u865F");
 
+        // 撞角动画：归一化坐标 -1..1，每帧按速度挪，碰边就反向
+        dvdX += dvdVx;
+        dvdY += dvdVy;
+        if (dvdX > 0.72f) {
+            dvdX = 0.72f;
+            dvdVx = -dvdVx;
+        } else if (dvdX < -0.72f) {
+            dvdX = -0.72f;
+            dvdVx = -dvdVx;
+        }
+        if (dvdY > 0.62f) {
+            dvdY = 0.62f;
+            dvdVy = -dvdVy;
+        } else if (dvdY < -0.62f) {
+            dvdY = -0.62f;
+            dvdVy = -dvdVy;
+        }
+
         pose.pushPose();
         pose.translate(center.x - lens.getStepX() * 0.15,
                 center.y - lens.getStepY() * 0.15,
                 center.z - lens.getStepZ() * 0.15);
+        pose.mulPose(Axis.YP.rotationDegrees(180));
         switch (lens) {
             case SOUTH -> pose.mulPose(Axis.YP.rotationDegrees(180));
             case EAST -> pose.mulPose(Axis.YP.rotationDegrees(90));
@@ -542,11 +578,22 @@ final class ProjectorRenderer {
         }
         float s = (float) (h / 5.0 / 9.0);
         pose.scale(-s, -s, s);
+        // 在文字的像素空间里偏移：屏幕半宽/半高 × 归一化位置
+        pose.translate(dvdX * TEX_W / 2f, dvdY * TEX_H / 2f, 0f);
         Matrix4f m = pose.last().pose();
         font.drawInBatch(text, -font.width(text) / 2f, -4f, 0xFFFFFFFF, false, m,
                 buffers, Font.DisplayMode.NORMAL, 0, 0xF000F0);
         pose.popPose();
     }
+
+    // DVD 屏保的漂移状态
+    private static float dvdX;
+    private static float dvdY;
+    private static float dvdVx = 0.0032f;
+    private static float dvdVy = 0.0021f;
+
+    /** 上一次渲染时是否在播。用来检测"从播到停"的边沿。 */
+    private static boolean wasPlaying;
 
     /** 屏幕自检：写已知基准色读回来，判定通道顺序。 */
     static void runSelfTest(Minecraft mc) {
