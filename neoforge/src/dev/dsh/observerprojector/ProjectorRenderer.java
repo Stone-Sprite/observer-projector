@@ -546,8 +546,13 @@ final class ProjectorRenderer {
         Component text = Component.literal("DVD \u7121\u8A0A\u865F");
 
         // 撞角动画：归一化坐标 -1..1，每帧按速度挪，碰边就反向
-        dvdX += dvdVx;
-        dvdY += dvdVy;
+        // 按真实时间推，不是按帧。之前每帧加固定量，帧率一变速度就跟着变
+        // —— 高帧率下这块标志会到处乱窜。
+        long nowMs = System.currentTimeMillis();
+        float dt = dvdLast == 0L ? 0f : Math.min(0.1f, (nowMs - dvdLast) / 1000f);
+        dvdLast = nowMs;
+        dvdX += dvdVx * dt;
+        dvdY += dvdVy * dt;
         if (dvdX > 0.72f) {
             dvdX = 0.72f;
             dvdVx = -dvdVx;
@@ -588,9 +593,10 @@ final class ProjectorRenderer {
 
     // DVD 屏保的漂移状态
     private static float dvdX;
+    private static long dvdLast;
     private static float dvdY;
-    private static float dvdVx = 0.0032f;
-    private static float dvdVy = 0.0021f;
+    private static float dvdVx = 0.20f;
+    private static float dvdVy = 0.14f;
 
     /** 上一次渲染时是否在播。用来检测"从播到停"的边沿。 */
     private static boolean wasPlaying;

@@ -386,8 +386,22 @@ final class VideoPlayer {
             acquireControls(l);
             byte[] buf = new byte[8192];
             int n;
+            long bytesWritten = 0;
             while (RUNNING.get() && (n = in.read(buf)) >= 0) {
+                // 音画同步纠正。视频那边是 20fps 固定输出，所以已产出帧数除以 20
+                // 就是画面已经播到第几秒；音频这边已写字节数除以(采样率x声道x位宽)
+                // 就是声音播到第几秒。两者一减就是当前漂移。
+                //
+                // 漂移超过 300ms 时把这一块音频直接丢掉，让声音等一等画面。
+                // 只处理"音频跑在前面"这个方向 —— 反过来要补样本，代价和风险都更大，
+                // 而实际漂移基本都是由音频抢先累积出来的。
+                double audioPos = bytesWritten / (double) (SAMPLE_RATE * 2 * 2);
+                double videoPos = producedCount() / 20.0;
+                if (videoPos > 0.5 && audioPos > videoPos + 0.30) {
+                    continue;   // 丢弃这一块
+                }
                 l.write(buf, 0, n);
+                bytesWritten += n;
             }
             l.drain();
         } catch (Exception e) {

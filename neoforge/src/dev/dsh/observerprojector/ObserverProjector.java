@@ -117,7 +117,6 @@ public final class ObserverProjector {
         BlockState state = mc.level.getBlockState(pos);
         LOG.info("[OP] block={} at {} state={}", state.getBlock(), pos, state);
         if (!(state.getBlock() instanceof ObserverBlock)) {
-            chat(mc, "§e那个方块不是侦测器，是 " + state.getBlock());
             return;
         }
         Direction facing = state.getValue(ObserverBlock.FACING);
