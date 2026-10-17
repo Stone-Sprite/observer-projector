@@ -428,6 +428,8 @@ final class ProjectorScreen extends Screen {
                     ObserverProjector.chat(minecraft, "§c这条拿不到播放地址（可能是会员专享）");
                     return;
                 }
+                // 先把可读信息记下来，共享时要用：名称/作者/时长/BV 短号
+                VideoPlayer.setShareInfo(r.title, r.author, r.duration, r.bvid);
                 minecraft.execute(() -> VideoPlayer.playUrl(url, ProviderSearch.REFERER));
             } catch (Exception e) {
                 ObserverProjector.LOG.warn("[OP] 取流失败: {}", e.toString());

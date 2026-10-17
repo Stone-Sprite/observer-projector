@@ -115,9 +115,17 @@ final class ShareChannel {
         if (mc.getConnection() == null || TARGETS.isEmpty()) {
             return false;
         }
-        // 载荷尽量短：私聊行有长度上限
-        String json = "{\"v\":1,\"s\":\"" + escape(id) + "\",\"t\":"
-                + (System.currentTimeMillis() / 1000L) + "}";
+        // 载荷格式：{"n":名称,"a":作者,"d":时长,"i":短号,"t":时间戳}
+        // 字段名照 dshmusic 用，短的优先 —— 一条聊天行装不下太多。
+        // 短号是可选的校验依据：有它接收方能放同一段，没有就只能显示文字。
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"v\":1");
+        appendField(sb, "n", VideoPlayer.shareName());
+        appendField(sb, "a", VideoPlayer.shareAuthor());
+        appendField(sb, "d", VideoPlayer.shareDuration());
+        appendField(sb, "i", VideoPlayer.shareBv());
+        sb.append(",\"t\":").append(System.currentTimeMillis() / 1000L).append("}");
+        String json = sb.toString();
         String token = ShareCrypto.seal(json);
         if (token == null) {
             return false;
@@ -158,18 +166,48 @@ final class ShareChannel {
         if (json == null) {
             return null;   // 没有标记、密钥不对、或者行被截断
         }
-        String id = field(json, "s");
-        if (id == null || id.isEmpty()) {
-            return null;
+        String name = field(json, "n");
+        String author = field(json, "a");
+        String duration = field(json, "d");
+        String bv = field(json, "i");
+        String readable = describe(name, author, duration);
+        if (bv == null || bv.isEmpty()) {
+            // 没有短号：只把信息念出来，放不了
+            return (from == null ? "对方" : from) + " 在放：" + readable;
         }
+        String id = "net:" + bv;
         // 别人发的，自己这边不应该被回送
         lastSent = id;
         boolean ok = VideoPlayer.playSource(id);
         String who = from == null ? "对方" : from;
         if (!ok) {
-            return "共享源无法播放：" + id;
+            return "无法播放 " + readable;
         }
-        return "跟随 " + who + " 播放：" + VideoPlayer.current();
+        return "跟随 " + who + " 播放：" + readable;
+    }
+
+
+    /** 只有值非空才写这个字段，空字段白占长度。 */
+    private static void appendField(StringBuilder sb, String key, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        sb.append(",\"").append(key).append("\":\"").append(escape(value)).append("\"");
+    }
+
+
+    /** 名称 · 作者 · 时长，空的部分跳过。 */
+    private static String describe(String name, String author, String duration) {
+        StringBuilder sb = new StringBuilder();
+        for (String part : new String[]{name, author, duration}) {
+            if (part != null && !part.isEmpty()) {
+                if (sb.length() > 0) {
+                    sb.append(" · ");
+                }
+                sb.append(part);
+            }
+        }
+        return sb.length() == 0 ? "未知内容" : sb.toString();
     }
 
     private static String field(String json, String key) {

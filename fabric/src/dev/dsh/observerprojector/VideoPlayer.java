@@ -71,6 +71,32 @@ final class VideoPlayer {
         return shareId;
     }
 
+
+    /** 共享用的可读信息。名字/作者/时长，以及可选的 B站短号（用来校验同一段）。 */
+    private static String shareName = "";
+    private static String shareAuthor = "";
+    private static String shareDuration = "";
+    private static String shareBv = "";
+
+    static String shareName() { return shareName; }
+    static String shareAuthor() { return shareAuthor; }
+    static String shareDuration() { return shareDuration; }
+    static String shareBv() { return shareBv; }
+
+    /**
+     * 记下一条可共享的信息。
+     *
+     * <p>视频名、作者、时长是给人看的；短号是可选的校验依据 —— 有它接收方就能放同一段，
+     * 没有它就只能显示文字。B站短号只有十几字符，比整个签名地址短得多。
+     */
+    static void setShareInfo(String name, String author, String duration, String bvid) {
+        shareName = name == null ? "" : name;
+        shareAuthor = author == null ? "" : author;
+        shareDuration = duration == null ? "" : duration;
+        shareBv = bvid == null ? "" : bvid;
+        shareId = !shareBv.isEmpty() ? ("net:" + shareBv) : ("name:" + shareName);
+    }
+
     static void setShareId(String id) {
         shareId = id;
     }
