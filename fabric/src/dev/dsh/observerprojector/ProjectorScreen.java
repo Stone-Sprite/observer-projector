@@ -832,13 +832,18 @@ final class ProjectorScreen extends Screen {
 
         private static java.util.List<String> online() {
             java.util.List<String> out = new java.util.ArrayList<>();
-            var conn = Minecraft.getInstance().getConnection();
-            if (conn == null) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level == null) {
                 return out;
             }
+            // 用实体列表而不是 connection.getOnlinePlayers()：后者的名字要过
+            // GameProfile，而 authlib 的 4.x 有 getName()、10.x 改成了 name()（Record）。
+            // 编译用的 classpath 是 4.x、运行时装的是 10.x，于是编译通过、运行 NoSuchMethodError。
+            // level.players() 拿的是 MC 自己的 Player 实体，getName() 返回 Component，
+            // 全程不碰 authlib，两个版本都成立。
             try {
-                for (var pi : conn.getOnlinePlayers()) {
-                    String n = pi.getProfile().getName();
+                for (var p : mc.level.players()) {
+                    String n = p.getName().getString();
                     if (n != null && !n.isEmpty()) {
                         out.add(n);
                     }

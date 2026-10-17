@@ -326,6 +326,25 @@ final class VideoPlayer {
         reader.setDaemon(true);
         reader.start();
 
+
+        // 音频那条的 stderr 也必须有人读。没人读的话管道写满，ffmpeg 就卡在写 stderr
+        // 上出不来了 —— 表现是"有概率没声音"，概率取决于那个流吐多少日志。
+        if (aproc != null) {
+            final Process ap = aproc;
+            Thread aerr = new Thread(() -> {
+                try (java.io.BufferedReader r = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(ap.getErrorStream()))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        ObserverProjector.LOG.debug("[OP] audio ffmpeg: {}", line);
+                    }
+                } catch (Exception ignored) {
+                }
+            }, "op-audio-err");
+            aerr.setDaemon(true);
+            aerr.start();
+        }
+
         if (aproc != null) {
             audioReader = new Thread(() -> readAudio(aproc.getInputStream()), "op-audio");
             audioReader.setDaemon(true);
