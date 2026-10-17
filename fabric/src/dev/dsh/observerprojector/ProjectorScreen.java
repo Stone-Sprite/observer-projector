@@ -68,6 +68,9 @@ final class ProjectorScreen extends Screen {
     private int rightX, rightW;
     private EditBox urlBox;
     private EditBox searchBox;
+    private EditBox cmdBox;
+    private EditBox targetBox;
+    private int shareTargetStart;
     /** 0 = 本地文件，1 = B站搜索结果。列表按它显示。 */
     private int mode;
     private final List<ProviderSearch.Result> results = new ArrayList<>();
@@ -145,8 +148,8 @@ final class ProjectorScreen extends Screen {
         rightW = panelX + panelW - PAD - rightX;
         rowTop = listY;
 
-        String[] tabs = {"播放", "颜色", "高级"};
-        int tabW = 52;
+        String[] tabs = {"播放", "颜色", "高级", "共享"};
+        int tabW = 48;
         for (int i = 0; i < tabs.length; i++) {
             final int t = i;
             addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> {
@@ -159,8 +162,10 @@ final class ProjectorScreen extends Screen {
             initPlay();
         } else if (tab == 1) {
             initColor();
-        } else {
+        } else if (tab == 2) {
             initAdvanced();
+        } else {
+            initShare();
         }
     }
 
@@ -365,8 +370,10 @@ final class ProjectorScreen extends Screen {
             renderPlay(g, mouseX, mouseY);
         } else if (tab == 1) {
             renderColor(g);
-        } else {
+        } else if (tab == 2) {
             renderAdvanced(g);
+        } else {
+            renderShare(g);
         }
         super.render(g, mouseX, mouseY, partial);
     }
@@ -541,6 +548,72 @@ final class ProjectorScreen extends Screen {
         y = rowLabel(g, y, "G 增益", String.format(Locale.ROOT, "%.2f", ProjectorConfig.gainG));
         y = rowLabel(g, y, "B 增益", String.format(Locale.ROOT, "%.2f", ProjectorConfig.gainB));
         rowLabel(g, y, "色差强度", String.valueOf(ProjectorConfig.aberR));
+    }
+
+    /** 共享页：把当前在播的东西通过服务器私聊告诉队友。 */
+    private void initShare() {
+        rightX = listX;
+        rightW = panelW - PAD * 2;
+        rowTop = listY;
+
+        int half = (ctrlW() - GAP) / 2;
+        int lx = ctrlX();
+        int rx = ctrlX() + half + GAP;
+        int rw = ctrlW() - half - GAP;
+
+        addRenderableWidget(toggle(ShareChannel.enabled() ? "共享：开" : "共享：关",
+                () -> ShareChannel.setEnabled(!ShareChannel.enabled()), listX, rowTop, rightW / 2 - GAP));
+        addRenderableWidget(Button.builder(Component.literal("立即共享当前"), b -> {
+            if (ShareChannel.shareCurrent()) {
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§a已共享给：" + ShareChannel.targetsLine()), false);
+                }
+            } else if (ShareChannel.targets().isEmpty()) {
+                if (minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§e还没加共享目标"), false);
+                }
+            }
+        }).bounds(listX + rightW / 2, rowTop, rightW / 2, BTN_H).build());
+        rowTop += BTN_H + GAP + 4;
+
+        // 私聊指令：各服不一样，所以要能改
+        cmdBox = new EditBox(font, ctrlX(), rowTop, ctrlW() - 80, BTN_H, Component.literal("私聊指令"));
+        cmdBox.setMaxLength(20);
+        cmdBox.setValue(ShareChannel.command());
+        addRenderableWidget(cmdBox);
+        addRenderableWidget(Button.builder(Component.literal("设定"), b -> {
+            ShareChannel.setCommand(cmdBox.getValue());
+        }).bounds(ctrlX() + ctrlW() - 76, rowTop, 76, BTN_H).build());
+        rowTop += BTN_H + GAP;
+
+        // 共享目标：一个名字一个，点一下删掉
+        addRenderableWidget(targetBox = new EditBox(font, ctrlX(), rowTop, ctrlW() - 80, BTN_H, Component.literal("玩家名")));
+        targetBox.setMaxLength(32);
+        addRenderableWidget(targetBox);
+        addRenderableWidget(Button.builder(Component.literal("添加"), b -> {
+            ShareChannel.addTarget(targetBox.getValue());
+            rebuildWidgets();
+        }).bounds(ctrlX() + ctrlW() - 76, rowTop, 76, BTN_H).build());
+        rowTop += BTN_H + GAP;
+
+        shareTargetStart = rowTop;
+        for (String who : ShareChannel.targets()) {
+            final String n = who;
+            addRenderableWidget(Button.builder(Component.literal("✕ " + who), b -> {
+                ShareChannel.removeTarget(n);
+                rebuildWidgets();
+            }).bounds(ctrlX(), rowTop, ctrlW(), BTN_H).build());
+            rowTop += BTN_H + 2;
+        }
+    }
+
+    /** 共享页标注。 */
+    private void renderShare(GuiGraphics g) {
+        int y = rowLabel(g, listY, "共享", ShareChannel.enabled() ? "开" : "关");
+        y = rowLabel(g, y, "私聊指令", ShareChannel.command());
+        y = rowLabel(g, y, "目标", ShareChannel.targetsLine());
+        g.drawString(font, "换内容时才发一条短消息，不是每帧都发",
+                ctrlX(), rowTop + 4, text(DIM), false);
     }
 
     /** 高级页标注。顺序必须和 initAdvanced() 建控件的顺序完全一致。 */

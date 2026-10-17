@@ -17,6 +17,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -158,6 +159,22 @@ public final class ObserverProjector {
         LOG.info("[OP] chat: {}", text);
         if (mc.player != null) {
             mc.player.displayClientMessage(Component.literal("§b[投影机] §f" + text), false);
+        }
+    }
+
+    /**
+     * 接收共享消息。解出来是投影仪的东西就跟着播。
+     *
+     * <p>用聊天栏当传输，任何服务器都能用，不需要插件也不需要中转。
+     */
+    @SubscribeEvent
+    public static void onChat(ClientChatReceivedEvent event) {
+        String note = ShareChannel.handleIncoming(event.getMessage().getString(), null);
+        if (note != null) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                mc.player.displayClientMessage(Component.literal(note), false);
+            }
         }
     }
 }

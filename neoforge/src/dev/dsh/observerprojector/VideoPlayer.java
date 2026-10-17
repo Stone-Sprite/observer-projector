@@ -14,6 +14,7 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.SourceDataLine;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -62,6 +63,63 @@ final class VideoPlayer {
     private VideoPlayer() {
     }
 
+
+    /** 当前在播内容的**可共享标识**：net:BV... / net:https://... / file:名字。 */
+    private static String shareId;
+
+    static String shareId() {
+        return shareId;
+    }
+
+    static void setShareId(String id) {
+        shareId = id;
+    }
+
+    /**
+     * 播放一个共享来的源标识。
+     *
+     * <p>三种前缀各有各的取法：B站短号自己解析（所以发送方的 CDN 地址永远不会外传）、
+     * 直播/直链直接播、本地文件要求自己也有同名文件。
+     *
+     * @return 是否接受了这个源（B站解析是异步的，这里只表示已经受理）
+     */
+    static boolean playSource(String id) {
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        if (id.startsWith("file:")) {
+            File f = new File(new File("D:\\dsh-build\\observer-projector\\videos"), id.substring(5));
+            if (!f.isFile()) {
+                return false;
+            }
+            play(f);
+            return true;
+        }
+        if (id.startsWith("net:BV")) {
+            final String bvid = id.substring(4);
+            new Thread(() -> {
+                try {
+                    long cid = ProviderSearch.cidOf(bvid);
+                    String url = ProviderSearch.videoUrl(bvid, cid);
+                    if (url != null) {
+                        Minecraft.getInstance().execute(() -> {
+                            setShareId(id);
+                            playUrl(url, ProviderSearch.REFERER);
+                        });
+                    }
+                } catch (Exception e) {
+                    ObserverProjector.LOG.warn("[OP] 共享源解析失败: {}", e.toString());
+                }
+            }, "op-share-resolve").start();
+            return true;
+        }
+        if (id.startsWith("net:")) {
+            setShareId(id);
+            playUrl(id.substring(4), null);
+            return true;
+        }
+        return false;
+    }
     static String status() {
         return status;
     }
@@ -123,6 +181,7 @@ final class VideoPlayer {
             return;
         }
         current = file.getName();
+        shareId = "file:" + file.getName();
         W = ProjectorConfig.texW();
         H = ProjectorConfig.texH();
         RUNNING.set(true);
@@ -170,6 +229,9 @@ final class VideoPlayer {
             return;
         }
         current = url;
+        if (shareId == null || !shareId.startsWith("net:BV")) {
+            shareId = "net:" + url;
+        }
         // 这一行是音频能不能出声的关键：startReaders 里音频那条 ffmpeg 靠它拿
         // Referer。之前漏了这句，streamReferer 恒为 null，音频进程被 B站 CDN 403
         // —— 表现就是"有画面没声音"。

@@ -5,6 +5,7 @@ import com.mojang.logging.LogUtils;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -68,6 +69,16 @@ public final class ObserverProjector implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(TOGGLE);
         WorldRenderEvents.AFTER_ENTITIES.register(ProjectorRenderer::render);
         ClientTickEvents.END_CLIENT_TICK.register(ObserverProjector::onEndTick);
+        // 接收共享消息：解出来是投影仪的就跟着播
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            String note = ShareChannel.handleIncoming(message.getString(), null);
+            if (note != null) {
+                Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                if (mc.player != null) {
+                    mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal(note), false);
+                }
+            }
+        });
     }
 
     private static void onEndTick(Minecraft mc) {
