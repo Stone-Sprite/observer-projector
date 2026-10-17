@@ -285,8 +285,14 @@ final class ProjectorScreen extends Screen {
                 Math.min(ProjectorConfig.RES.length - 1, ProjectorConfig.resIndex + 1));
         stepper("上传帧率", () -> ProjectorConfig.uploadFps = Math.max(5, ProjectorConfig.uploadFps - 5),
                 () -> ProjectorConfig.uploadFps = Math.min(60, ProjectorConfig.uploadFps + 5));
-        stepper("投射角", () -> ProjectorConfig.throwDeg = Math.max(20.0, ProjectorConfig.throwDeg - 5.0),
-                () -> ProjectorConfig.throwDeg = Math.min(70.0, ProjectorConfig.throwDeg + 5.0));
+        // 投射角用滑块，不用 ± 按钮。5 度一级太粗，而一两点五度一级要点上百次
+        // —— 滑块连续可调，想要多细有多细，这也是它在这里唯一合适的形态。
+        addRenderableWidget(new GainSlider(ctrlX(), rowTop, ctrlW(), BTN_H,
+                20f, 70f, (float) ProjectorConfig.throwDeg, "投射角", v -> {
+                    ProjectorConfig.throwDeg = v;
+                    ProjectorRenderer.throwDeg = v;
+                }));
+        rowTop += BTN_H + GAP;
         stepper("光锥密度", () -> ProjectorConfig.beamDensity = Math.max(1, ProjectorConfig.beamDensity - 1),
                 () -> ProjectorConfig.beamDensity = Math.min(12, ProjectorConfig.beamDensity + 1));
 
