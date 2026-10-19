@@ -77,6 +77,8 @@ final class ProjectorScreen extends Screen {
     private final List<ProviderSearch.Result> results = new ArrayList<>();
     private String searchMsg = "";
     private int rowTop;
+    /** 上次同步时索引库的条目数，变了就刷新列表。 */
+    private int libraryCount = -1;
     private int previewY;
 
     ProjectorScreen() {
@@ -100,22 +102,19 @@ final class ProjectorScreen extends Screen {
         return rightW - LBL_W - GAP;
     }
 
+    /**
+     * 从索引库同步到列表。
+     *
+     * <p>以前这里单独扫 videos 目录，和索引库是两条线 —— 索引库扫到 79 条，
+     * 列表里还是旧的那几个。现在统一从 VideoLibrary 取，单一来源。
+     */
     private void scanFiles() {
         files.clear();
-        File[] list = VIDEO_DIR.listFiles();
-        if (list == null) {
-            return;
+        for (VideoLibrary.Entry en : VideoLibrary.entries()) {
+            files.add(en.file());
         }
-        java.util.Arrays.sort(list);
-        for (File f : list) {
-            if (!f.isFile()) {
-                continue;
-            }
-            String n = f.getName().toLowerCase(Locale.ROOT);
-            if (n.endsWith(".mp4") || n.endsWith(".mkv") || n.endsWith(".webm")
-                    || n.endsWith(".mov") || n.endsWith(".avi")) {
-                files.add(f);
-            }
+        if (selected >= files.size()) {
+            selected = files.isEmpty() ? -1 : 0;
         }
     }
 
@@ -373,6 +372,15 @@ final class ProjectorScreen extends Screen {
         String head = "♪ 观察者投影机    镜头：" + ObserverProjector.lens.getName();
         g.drawString(font, head, panelX + panelW - PAD - font.width(head), panelY + 8, text(ACCENT), false);
 
+        if (tab == 0 && VideoLibrary.count() != libraryCount) {
+            // 索引库是异步扫的，扫完数目会变 —— 列表得跟着更新，
+            // 否则用户看到的就是"扫到了但不显示"。
+            libraryCount = VideoLibrary.count();
+            files.clear();
+            for (VideoLibrary.Entry en : VideoLibrary.entries()) {
+                files.add(en.file());
+            }
+        }
         if (tab == 0) {
             renderPlay(g, mouseX, mouseY);
         } else if (tab == 1) {
