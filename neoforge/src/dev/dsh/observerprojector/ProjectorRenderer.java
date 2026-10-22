@@ -215,7 +215,11 @@ final class ProjectorRenderer {
         int d = -1;
         for (int i = 1; i <= ProjectorConfig.maxD; i++) {
             BlockState s = mc.level.getBlockState(cursor);
-            if (s.canOcclude()) {
+            // 只把"完整的实心方块"当成墙。
+            // canOcclude() 对玻璃、栅栏、台阶、树叶也返回 true —— 拿它判断的话，
+            // 这些方块会把投影切得七零八落，看起来像"没指向的方块也在挡"。
+            // isSolidRender 才是"这一格的六个面都被挡住"的真正含义。
+            if (s.isSolidRender()) {
                 d = i;
                 break;
             }
@@ -382,7 +386,7 @@ final class ProjectorRenderer {
         Vec3 step = dir.scale(1.0 / len);
         for (double t = 0.6; t < len - 0.6; t += 0.25) {
             Vec3 p = eye.add(step.scale(t));
-            if (mc.level.getBlockState(BlockPos.containing(p.x, p.y, p.z)).canOcclude()) {
+            if (mc.level.getBlockState(BlockPos.containing(p.x, p.y, p.z)).isSolidRender()) {
                 return false;
             }
         }

@@ -4,7 +4,7 @@ loaderVersion = "[1,)"
 license = "MIT"
 [[mods]]
 modId = "observerprojector"
-version = "0.3.12"
+version = "0.3.13"
 displayName = "Observer Projector"
 authors = "DSH"
 description = "Turns the observer block into a projector. Place one on a fence, put a button on its back, then right-click it to open the player UI. The picture comes out of the observer's face and lands on whatever wall is 5-15 blocks away.\n\nPlays local video files, Bilibili search results, CCTV live channels, or any m3u8/mp4 URL, decoded through ffmpeg. Audio is spatialised from the projector - or from a note block nearby, which turns it into an external speaker.\n\nShare what you are playing with other players through the server's private-message command, the same way the dshmusic mod does it.\n\nClient-side only. Requires ffmpeg on the machine."

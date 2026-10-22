@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,6 +70,38 @@ final class ProviderSearch {
                 continue;
             }
             out.add(new Result(m.group(1), clean(title), str(item, "author"), str(item, "duration")));
+        }
+        return out;
+    }
+
+    /**
+     * B站推荐流（首页「动态」那一类内容）。
+     *
+     * <p>不需要登录、不需要关键词 —— 走的是首页推荐接口，返回的就是一堆带 bvid 的视频。
+     * 时长字段是秒数，这里顺手格式化成 m:ss。
+     */
+    static List<Result> feed() throws IOException, InterruptedException {
+        String url = "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd"
+                + "?ps=20&fresh_type=3&feed_version=V8";
+        String body = get(url);
+        List<Result> out = new ArrayList<>();
+        // data.item[] 里每条都有 bvid / title / owner.name / duration
+        Matcher m = Pattern.compile("\\{[^{}]*\"bvid\"\\s*:\\s*\"([^\"]+)\"[^{}]*\\}").matcher(body);
+        while (m.find() && out.size() < 40) {
+            String item = m.group();
+            String bvid = m.group(1);
+            String title = str(item, "title");
+            if (title.isEmpty()) {
+                continue;
+            }
+            String author = str(item, "name");
+            Matcher dm = Pattern.compile("\"duration\"\\s*:\\s*(\\d+)").matcher(item);
+            String dur = "";
+            if (dm.find()) {
+                long s = Long.parseLong(dm.group(1));
+                dur = String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60);
+            }
+            out.add(new Result(bvid, clean(title), author, dur));
         }
         return out;
     }

@@ -16,7 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 
 /**
@@ -183,7 +183,7 @@ final class ProjectorRenderer {
         writeTexture(screen.getPixels(), baseBuf);
     }
 
-    static void render(WorldRenderContext ctx) {
+    static void render(RenderLevelStageEvent.AfterEntities event) {
         long nowMs = System.currentTimeMillis();
         lastDistance = -1;
         lastCols = 0;
@@ -215,7 +215,11 @@ final class ProjectorRenderer {
         int d = -1;
         for (int i = 1; i <= ProjectorConfig.maxD; i++) {
             BlockState s = mc.level.getBlockState(cursor);
-            if (s.canOcclude()) {
+            // 只把"完整的实心方块"当成墙。
+            // canOcclude() 对玻璃、栅栏、台阶、树叶也返回 true —— 拿它判断的话，
+            // 这些方块会把投影切得七零八落，看起来像"没指向的方块也在挡"。
+            // isSolidRender 才是"这一格的六个面都被挡住"的真正含义。
+            if (s.isSolidRender()) {
                 d = i;
                 break;
             }
@@ -246,7 +250,7 @@ final class ProjectorRenderer {
                 origin.getY() + 0.5 + lens.getStepY() * 0.5,
                 origin.getZ() + 0.5 + lens.getStepZ() * 0.5);
 
-        PoseStack pose = ctx.matrices();
+        PoseStack pose = event.getPoseStack();
         MultiBufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
 
         // 1.21.9+ 之后姿态矩阵是单位阵，相机位移不再预先塞进去，自己减掉
@@ -382,7 +386,7 @@ final class ProjectorRenderer {
         Vec3 step = dir.scale(1.0 / len);
         for (double t = 0.6; t < len - 0.6; t += 0.25) {
             Vec3 p = eye.add(step.scale(t));
-            if (mc.level.getBlockState(BlockPos.containing(p.x, p.y, p.z)).canOcclude()) {
+            if (mc.level.getBlockState(BlockPos.containing(p.x, p.y, p.z)).isSolidRender()) {
                 return false;
             }
         }

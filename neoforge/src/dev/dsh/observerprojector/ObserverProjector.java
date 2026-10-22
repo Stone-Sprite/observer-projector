@@ -104,18 +104,19 @@ public final class ObserverProjector {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        LOG.info("[OP] use triggered: player={} level={} screen={} hit={}",
-                mc.player != null, mc.level != null, mc.screen != null, mc.hitResult);
         if (mc.player == null || mc.level == null || mc.screen != null) {
             return;
         }
+        // 瞄准空气、瞄准实体、或者准星什么都没打中 —— 一律安静返回。
+        // 以前这里会往聊天栏打一句「没有指向方块（hitResult = MISS）」，
+        // 而 onInteraction 每次右键都会触发，对着空气点两下就刷屏了，
+        // 还把内部对象直接甩给玩家看。这类只对调试有用的信息不该出现在聊天栏。
         if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) {
-            chat(mc, "§e没有指向方块（hitResult = " + mc.hitResult + "）");
             return;
         }
         BlockPos pos = hit.getBlockPos();
         BlockState state = mc.level.getBlockState(pos);
-        LOG.info("[OP] block={} at {} state={}", state.getBlock(), pos, state);
+        // （调试日志已移除）
         if (!(state.getBlock() instanceof ObserverBlock)) {
             return;
         }
@@ -126,8 +127,7 @@ public final class ObserverProjector {
         BlockState onButt = mc.level.getBlockState(pos.relative(butt));
         boolean onFence = below.getBlock() instanceof FenceBlock;
         boolean hasButton = onButt.getBlock() instanceof ButtonBlock;
-        LOG.info("[OP] facing={} butt={} below={}(fence={}) onButt={}(button={})",
-                facing, butt, below.getBlock(), onFence, onButt.getBlock(), hasButton);
+        // （调试日志已移除）
 
         if (!onFence) {
             chat(mc, "§c侦测器下面不是栅栏，是 " + below.getBlock());
@@ -142,7 +142,7 @@ public final class ObserverProjector {
         active = pos.immutable();
         lens = facing;
         enabled = true;
-        LOG.info("[OP] projector armed at {} lens={}", active, lens);
+        // （调试日志已移除）
             // 就位提示按需求从聊天栏去掉 —— 方块/朝向那些属于调试信息
         mc.setScreen(new ProjectorScreen());
     }
@@ -160,7 +160,7 @@ public final class ObserverProjector {
 
     /** 走聊天栏而不是物品栏上方那一行 —— 那一行两秒就没了，看不见报的什么错。 */
     static void chat(Minecraft mc, String text) {
-        LOG.info("[OP] chat: {}", text);
+        // （调试日志已移除）
         if (mc.player != null) {
             mc.player.displayClientMessage(Component.literal("§b[投影机] §f" + text), false);
         }
